@@ -1,0 +1,94 @@
+# pv-nfs.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonarqube-pv
+  namespace: sonarqube
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.1.120
+    path: /opt/kubernetes-nfs/sonarqube/sonarqube
+  persistentVolumeReclaimPolicy: Retain
+---
+# pvc-nfs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-pvc
+  namespace: sonarqube
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: sonarqube-pv
+---
+
+## postgres-volume
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonarqube-pg-pv
+  namespace: sonarqube
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.1.120
+    path: /opt/kubernetes-nfs/sonarqube/pg-data
+  persistentVolumeReclaimPolicy: Retain
+---
+# pvc-nfs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-pg-pvc
+  namespace: sonarqube
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: sonarqube-pg-pv
+
+---
+######################################################################
+# sonarqube-extensions
+######################################################################
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sonarqube-extn-pv
+  namespace: sonarqube
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.1.120
+    path: /opt/kubernetes-nfs/sonarqube/sonarqube-extensions
+  persistentVolumeReclaimPolicy: Retain
+---
+# pvc-nfs.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-extn-pvc
+  namespace: sonarqube
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  volumeName: sonarqube-extn-pv

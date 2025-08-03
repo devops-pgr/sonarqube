@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgresql
+  namespace: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+  template:
+    metadata:
+      labels:
+        app: postgresql
+    spec:
+      securityContext:
+        fsGroup: 1001
+        runAsUser: 1001
+      containers:
+        - name: postgresql
+          image: docker.io/bitnami/postgresql:latest
+          env:
+            - name: POSTGRESQL_USERNAME
+              value: bn_sonarqube
+            - name: POSTGRESQL_PASSWORD
+              value: bitnami
+            - name: POSTGRESQL_DATABASE
+              value: bitnami_sonarqube
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /bitnami/postgresql
+              name: postgredb
+      volumes:
+        - name: postgredb
+          persistentVolumeClaim:
+            claimName: sonarqube-pg-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+  namespace: sonarqube
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+  selector:
+    app: postgresql
+---
+###############################################################################
+# SonarQube Deployment
+###############################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  template:
+    metadata:
+      labels:
+        app: sonarqube
+    spec:
+      containers:
+        - name: sonarqube
+          image: docker.io/bitnami/sonarqube:25
+          ports:
+            - containerPort: 9000
+          env:
+            - name: SONAR_JDBC_URL
+              value: jdbc:postgresql://postgresql:5432/sonarqube
+            - name: SONAR_JDBC_USERNAME
+              value: sonar
+            - name: SONAR_JDBC_PASSWORD
+              value: sonar
+            - name: SONARQUBE_DATABASE_USER
+              value: bn_sonarqube  # Matches your DB password
+            - name: SONARQUBE_DATABASE_PASSWORD
+              value: bitnami
+            - name: SONARQUBE_DATABASE_NAME
+              value: bitnami_sonarqube
+            - name: SONARQUBE_PASSWORD
+              value: AdmiN@123Sonar  # Change this to your desired admin password
+          volumeMounts:
+            - name: sonarqube-data
+              mountPath: /opt/bitnami/sonarqube/data
+            - name: sonarqube-extensions
+              mountPath: /opt/bitnami/sonarqube/extensions
+
+      volumes:
+        - name: sonarqube-data
+          persistentVolumeClaim:
+            claimName: sonarqube-pvc
+        - name: sonarqube-extensions
+          persistentVolumeClaim:
+            claimName: sonarqube-extn-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube
+  namespace: sonarqube
+spec:
+  type: NodePort  # Change to LoadBalancer in cloud setups
+  ports:
+    - port: 9000
+      targetPort: 9000
+      nodePort: 30000
+  selector:
+    app: sonarqube
+##
+#AdmiN@123Sonar
+##
