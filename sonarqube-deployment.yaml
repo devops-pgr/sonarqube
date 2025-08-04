@@ -13,12 +13,16 @@ spec:
       labels:
         app: postgresql
     spec:
-      # securityContext:
-      #   fsGroup: 1001
-      #   runAsUser: 1001
       containers:
         - name: postgresql
           image: docker.io/bitnami/postgresql:latest
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
           env:
             - name: POSTGRESQL_USERNAME
               value: bn_sonarqube
@@ -48,10 +52,8 @@ spec:
     - port: 5432
   selector:
     app: postgresql
+
 ---
-###############################################################################
-# SonarQube Deployment
-###############################################################################
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,29 +71,38 @@ spec:
     spec:
       containers:
         - name: sonarqube
-          image: docker.io/bitnami/sonarqube:25
+          image: sonarqube:25.6.0.109173-community
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "1000m"
+            limits:
+              memory: "8Gi"
+              cpu: "2"
           ports:
             - containerPort: 9000
           env:
             - name: SONAR_JDBC_URL
-              value: jdbc:postgresql://postgresql:5432/sonarqube
+              value: jdbc:postgresql://postgresql:5432/bitnami_sonarqube
             - name: SONAR_JDBC_USERNAME
-              value: sonar
+              value: bn_sonarqube
             - name: SONAR_JDBC_PASSWORD
-              value: sonar
+              value: bitnami
             - name: SONARQUBE_DATABASE_USER
-              value: bn_sonarqube  # Matches your DB password
+              value: bn_sonarqube
             - name: SONARQUBE_DATABASE_PASSWORD
               value: bitnami
             - name: SONARQUBE_DATABASE_NAME
               value: bitnami_sonarqube
             - name: SONARQUBE_PASSWORD
-              value: AdmiN@123Sonar  # Change this to your desired admin password
+              value: AdmiN@123Sonar
+            - name: SONARQUBE_WEB_JAVA_OPTS
+              value: "-Xms2G -Xmx4G"
           volumeMounts:
             - name: sonarqube-data
-              mountPath: /opt/bitnami/sonarqube/data
+              mountPath: /opt/sonarqube/data
             - name: sonarqube-extensions
-              mountPath: /opt/bitnami/sonarqube/extensions
+              mountPath: /opt/sonarqube/extensions
 
       volumes:
         - name: sonarqube-data
@@ -100,6 +111,7 @@ spec:
         - name: sonarqube-extensions
           persistentVolumeClaim:
             claimName: sonarqube-extn-pvc
+
 ---
 apiVersion: v1
 kind: Service
@@ -107,13 +119,10 @@ metadata:
   name: sonarqube
   namespace: sonarqube
 spec:
-  type: NodePort  # Change to LoadBalancer in cloud setups
+  type: NodePort
   ports:
     - port: 9000
       targetPort: 9000
       nodePort: 30000
   selector:
     app: sonarqube
-##
-#AdmiN@123Sonar
-##
