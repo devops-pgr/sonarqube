@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nexus
+  namespace: nexus
+spec:
+  serviceName: "nexus"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexus
+  template:
+    metadata:
+      labels:
+        app: nexus
+    spec:
+      containers:
+      - name: nexus
+        image: sonatype/nexus3:3.82.0
+        ports:
+        - containerPort: 8081
+        volumeMounts:
+        - name: nexus-data
+          mountPath: /nexus-data
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "1"
+      securityContext:
+        fsGroup: 200
+      volumes:
+      - name: nexus-data
+        persistentVolumeClaim:
+          claimName: nexus-data-pvc  # Ensure this PVC is created in the same namespace
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nexus
+  namespace: nexus
+spec:
+  type: NodePort
+  selector:
+    app: nexus
+  ports:
+    - name: ui
+      port: 8081
+      targetPort: 8081
+      nodePort: 30081
+    - name: docker-registry
+      port: 5000
+      targetPort: 5000
+      nodePort: 32000   # choose a free NodePort
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nexus-ingress
+  namespace: nexus
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/auth-response-headers: "WWW-Authenticate"
+
+spec:
+  rules:
+  - host: www.pgrnexus.com
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: nexus
+            port:
+              number: 8081
+      - pathType: Prefix
+        path: "/v2/"
+        backend:
+          service:
+            name: nexus
+            port:
+              number: 5000
+
+
+
+# ---
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: nexus
+#   namespace: nexus
+# spec:
+#   type: NodePort
+#   selector:
+#     app: nexus
+#   ports:
+#     - port: 8081
+#       targetPort: 8081
+#       nodePort: 30081  # Optional: specify a NodePort if needed
+# ---
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: nexus-ingress
+#   namespace: nexus
+#   annotations:
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+#     nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
+#     nginx.ingress.kubernetes.io/rewrite-target: /
+#     nginx.ingress.kubernetes.io/ssl-redirect: "false"  # Disable SSL redirect if not using HTTPS
+# spec:
+#   rules:
+#   - host: www.pgrnexus.com
+#     http:
+#       paths:
+#       - pathType: Prefix
+#         path: "/"
+#         backend:
+#           service:
+#             name: nexus
+#             port: 
+#               number: 8081
